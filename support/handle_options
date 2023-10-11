@@ -1,0 +1,38 @@
+#!/bin/bash
+
+# See
+#   support/help.txt
+# and
+#   mail-archive
+# for context
+
+# external files
+support="."
+archives="$( cat $support/archivedir.txt )"
+account_file="$support/account.txt"
+help_file="$support/help.txt"
+
+# options
+do_set="$1"
+do_show_current="$2"
+do_show_all="$3"
+do_help="$4"
+
+# respond to optional arguments
+if [[ "$do_show_current" == "true" ]]; then
+    echo -n "Currently set up to archive emails under account "
+    cat $account_file
+    echo ""
+fi
+if [[ "$do_show_all" == "true" ]]; then
+    echo "Email archives exist under the following accounts:"
+    ls $archives
+fi
+if [[ "$do_set" == "true" ]]; then
+    echo -n "Always archive emails under account: "
+    read newaccount
+    echo -n $newaccount > $account_file
+fi
+if [[ "$do_help" == "true" ]]; then
+    cat $help_file
+fi

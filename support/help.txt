@@ -1,0 +1,20 @@
+Usage:
+
+     mail-archive [-options] [files...]
+
+In case of ambiguity, terminate the options with --
+
+
+Options:
+
+-s --set
+Prompt to set the email account or alias under which to archive emails
+
+-c --show-current
+Print the email account or alias under which emails are currently being archived
+
+-a --show-all
+Print a list of all email accounts or aliases under which archived emails exist
+
+--help
+Print this message

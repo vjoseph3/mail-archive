@@ -1,0 +1,127 @@
+#!/bin/bash
+
+# See support/help.txt for usage
+
+# external files
+support="./support"
+archives="$( cat $support/archivedir.txt )"
+account="$( cat $support/account.txt )"
+handle_options="$support/handle_options"
+
+# archive location
+targetfolder=""
+
+# options
+do_set=false
+do_show_current=false
+do_show_all=false
+do_help=false
+
+# loop through all command line arguments
+mode="options"
+handled_options=false
+for arg in "$@"; do
+    if [[ "$mode" == "options" ]]; then
+        # keep track of which options are present
+        if [[ "$arg" == "--set" ]]; then
+            do_set=true
+        elif [[ "$arg" == "--show-current" ]]; then
+            do_show_current=true
+        elif [[ "$arg" == "--show-all" ]]; then
+            do_show_all=true
+        elif [[ "$arg" == "--help" ]]; then
+            do_help=true
+        elif [[ "$arg" == "--" ]]; then
+            mode="skip"
+        elif [[ "$arg" == "--${arg#--}" ]]; then
+            mode="error" # unrecognized option
+        elif [[ "$arg" == "-${arg#-}" ]]; then
+            # multiple options together
+            opts="${arg#-}"
+            for (( i=0; i<${#opts}; i++ )); do
+                if [[ "${opts:$i:1}" == "s" ]]; then
+                    do_set=true
+                elif [[ "${opts:$i:1}" == "c" ]]; then
+                    do_show_current=true
+                elif [[ "${opts:$i:1}" == "a" ]]; then
+                    do_show_all=true
+                else
+                    mode="error"
+                    arg="-${opts:$i:1}" # store the unrecognized option
+                fi
+            done
+        else
+            mode="first_file"
+        fi
+    fi
+    if [[ "$mode" == "skip" || "$mode" == "first_file" ]]; then
+        # respond to optional arguments
+        $handle_options "$do_set" "$do_show_current" "$do_show_all" "$do_help"
+        handled_options=true
+        if [[ "$mode" == "skip" ]]; then
+            mode="begin_files"
+            continue
+        else
+            mode="begin_files"
+        fi
+    fi
+    if [[ "$mode" == "begin_files" ]]; then
+        # prompt for folder
+        echo -n "Archive emails in folder: "
+        read folder
+
+        # ensure account and folder exist
+        targetfolder="$archives/$account/$folder"
+        if [[ -d "$targetfolder" ]]; then
+            :
+        else
+            echo -n "Folder \"$folder\" does not exist for $account. Would you like to create it? [y/n] "
+            read should_create
+            if [[ "$should_create" == "y" ]]; then
+                mkdir -p "$targetfolder"
+            else
+                echo "Cancelled"
+                exit
+            fi
+        fi
+
+        mode="files"
+    fi
+    if [[ "$mode" == "files" ]]; then
+        arg_orig="$arg"
+        while [[ -e "$targetfolder/$arg" ]]; do
+            if cmp -s "$arg_orig" "$targetfolder/$arg"; then
+                echo "deleting duplicate file..."
+                echo "file being deleted:  $arg_orig"
+                echo "identical file already archived:  $arg"
+                rm "$arg_orig"
+                break
+            else
+                arg="$arg (copy)"
+            fi
+        done
+        if [[ -e "$arg_orig" ]]; then
+            if [[ "$arg" != "$arg_orig" ]]; then
+                # file differs from namesake
+                echo "archiving and renaming file..."
+                echo "original name:  $arg_orig"
+                echo "new name:       $arg"
+                mv "$arg_orig" "$arg"
+            else
+                echo "archiving file:  $arg"
+            fi
+            mv "$arg" "$targetfolder"
+        fi
+    fi
+    if [[ "$mode" == "error" ]]; then
+        echo "Unknown optional argument: \"$arg\""
+        echo "Run \"mail-archive --help\" for usage."
+        exit
+    fi
+done
+
+if $handled_options; then
+    :
+else
+    $handle_options "$do_set" "$do_show_current" "$do_show_all" "$do_help"
+fi
